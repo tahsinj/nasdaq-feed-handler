@@ -36,7 +36,10 @@ else()
 endif()
 
 add_library(feedhandler
+  src/fast_book.cpp
   src/mapped_file.cpp
+  src/os_memory.cpp
+  src/reference_book.cpp
   src/summary.cpp
 )
 target_include_directories(feedhandler PUBLIC include)
