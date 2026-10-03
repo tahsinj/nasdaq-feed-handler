@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc
+            os: ubuntu-latest
+            cxx: g++
+          - name: linux-clang
+            os: ubuntu-latest
+            cxx: clang++
+          - name: windows-msvc
+            os: windows-latest
+            cxx: ""
+    steps:
+      - uses: actions/checkout@v6
+      - name: Configure
+        shell: bash
+        run: |
+          args=(-S . -B build -DCMAKE_BUILD_TYPE=Release)
+          if [ -n "${{ matrix.cxx }}" ]; then args+=(-DCMAKE_CXX_COMPILER=${{ matrix.cxx }}); fi
+          cmake "${args[@]}"
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  sanitizers:
+    name: linux-${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: asan-ubsan
+            sanitize: address,undefined
+          - name: tsan
+            sanitize: thread
+    steps:
+      - uses: actions/checkout@v6
+      # Recent runner kernels randomize mmap with more bits than the sanitizer runtimes expect.
+      - name: Lower mmap randomization
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Configure
+        run: >
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DFH_NATIVE=OFF
+          -DFH_SANITIZE=${{ matrix.sanitize }}
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
