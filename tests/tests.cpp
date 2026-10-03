@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -15,6 +16,7 @@
 #include "itch/writer.hpp"
 #include "util/alloc_counter.hpp"
 #include "util/histogram.hpp"
+#include "util/spsc_ring.hpp"
 
 namespace {
 
@@ -641,6 +643,30 @@ TEST(order_map_matches_unordered_map) {
   }
   CHECK(disagreements == 0);
   CHECK(map.size() == expected.size());
+}
+
+TEST(spsc_ring_delivers_every_item_in_order) {
+  util::SpscRing<std::uint64_t> ring(1024);
+  constexpr std::uint64_t kItems = 2'000'000;
+  std::thread producer([&ring] {
+    for (std::uint64_t i = 0; i < kItems; ++i) {
+      while (!ring.try_push(i)) {
+      }
+    }
+  });
+  std::uint64_t next = 0;
+  bool in_order = true;
+  while (next < kItems) {
+    std::uint64_t v = 0;
+    if (ring.try_pop(v)) {
+      in_order = in_order && v == next;
+      ++next;
+    }
+  }
+  producer.join();
+  std::uint64_t extra = 0;
+  CHECK(in_order);
+  CHECK(!ring.try_pop(extra));
 }
 
 TEST(histogram_quantiles) {

@@ -55,6 +55,7 @@ endfunction()
 
 fh_executable(itch_bench tools/bench.cpp)
 fh_executable(itch_verify tools/verify.cpp)
+fh_executable(itch_pipeline tools/pipeline.cpp)
 fh_executable(itch_gen tools/gen.cpp)
 
 if(FH_BUILD_TESTS)
@@ -68,6 +69,7 @@ if(FH_BUILD_TESTS)
   set_tests_properties(generate_sample PROPERTIES FIXTURES_SETUP sample)
   add_test(NAME verify_sample COMMAND itch_verify ${sample})
   add_test(NAME bench_sample COMMAND itch_bench ${sample})
-  set_tests_properties(verify_sample bench_sample
+  add_test(NAME pipeline_sample COMMAND itch_pipeline ${sample})
+  set_tests_properties(verify_sample bench_sample pipeline_sample
                        PROPERTIES FIXTURES_REQUIRED sample)
 endif()
