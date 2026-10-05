@@ -32,7 +32,8 @@ cmake --build build -j
 ctest --test-dir build --output-on-failure
 ```
 
-Windows, with Visual Studio 2022 ("Desktop development with C++"), from a Developer PowerShell:
+Windows, with Visual Studio 2022 or newer ("Desktop development with C++"), from a Developer
+PowerShell:
 
 ```powershell
 cmake -S . -B build
@@ -40,28 +41,45 @@ cmake --build build --config Release
 ctest --test-dir build -C Release --output-on-failure
 ```
 
+WSL2 on Windows runs the Linux build. Keep data files in the Linux file system (for example
+`~/itch`), because files under `/mnt/c` are read through a slow file sharing layer. WSL2 gets half
+of the machine's RAM by default; on a 32 GB machine, raise it to 24 GB in
+`%UserProfile%\.wslconfig` and run `wsl --shutdown`:
+
+```ini
+[wsl2]
+memory=24GB
+```
+
 Binaries land in `build/` on Linux and `build\Release\` on Windows. The build tunes for the
 machine it runs on (`-march=native`, or `/arch:AVX2` on MSVC); `-DFH_NATIVE=OFF` gives portable
 binaries. `-DFH_SANITIZE=address,undefined` or `-DFH_SANITIZE=thread` enables sanitizers on GCC
 and Clang.
 
-A full-day replay needs about 1.8 GB for the fast book plus the file in the page cache, and
-`itch_verify` also builds the reference book. 16 GB of RAM works; 32 GB is comfortable.
+The fast book preallocates about 2 GB for a full day, and `itch_verify` also builds the reference
+book. The Data section covers how much memory the file itself needs.
 
 ## Data
 
-NASDAQ publishes sample days at <https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/>, named
-`MMDDYYYY.NASDAQ_ITCH50.gz`. A day is several GB compressed and roughly 8 to 12 GB decompressed.
-The tools read the decompressed file:
+NASDAQ publishes sample days at <https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/>. The older files
+are named by trading day (`01302020.NASDAQ_ITCH50.gz`); the 2026 uploads use names like
+`itch50_05_15.gz` (15 May 2026: 13 GB compressed, 30 GB unpacked, 961 million messages). The
+tools read the unpacked file:
 
 ```sh
-DAY=08302019   # any day in the listing
-curl -O "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/${DAY}.NASDAQ_ITCH50.gz"
-gunzip -k ${DAY}.NASDAQ_ITCH50.gz
+FILE=01302020.NASDAQ_ITCH50.gz   # any file in the listing
+curl -fL --retry 5 -C - -O "https://emi.nasdaq.com/ITCH/Nasdaq%20ITCH/${FILE}"
+gunzip -k "${FILE}"
 ```
 
-On Windows, download it in a browser and extract it with 7-Zip. Keep the file on a local SSD.
-With enough RAM the OS keeps it cached between runs, so only the first run waits on the disk.
+On Windows, run the same command with `curl.exe` or use a browser, and extract with 7-Zip.
+
+`itch_bench` and `itch_pipeline` load the whole file into memory before timing, so the file and
+about 2 GB for the book have to fit in RAM, or the timed run ends up waiting on the disk. A file
+unpacks to a bit over twice its download size. On a 32 GB machine, use one of the 2019 or 2020
+days; the 2026 day needs 48 GB or more. `itch_verify` reads the file front to back and works with
+any day. With enough RAM the OS keeps the file cached between runs, so only the first run waits
+on the disk.
 
 To try the tools without the download, `itch_gen` writes a synthetic day with the same framing
 and message types (`--messages`, `--symbols` and `--seed` control it):
@@ -77,7 +95,7 @@ Synthetic files are for testing. Benchmark numbers only mean something on a real
 ### itch_verify
 
 ```sh
-./build/itch_verify 08302019.NASDAQ_ITCH50
+./build/itch_verify 01302020.NASDAQ_ITCH50
 ```
 
 Replays the day into both books and compares the best bid and ask (price, size and order count)
@@ -95,9 +113,9 @@ The exit code is 0 only if every check passes.
 ### itch_bench
 
 ```sh
-./build/itch_bench 08302019.NASDAQ_ITCH50 --cpu 2
-./build/itch_bench 08302019.NASDAQ_ITCH50 --book reference
-./build/itch_bench 08302019.NASDAQ_ITCH50 --book decode
+./build/itch_bench 01302020.NASDAQ_ITCH50 --cpu 2
+./build/itch_bench 01302020.NASDAQ_ITCH50 --book reference
+./build/itch_bench 01302020.NASDAQ_ITCH50 --book decode
 ```
 
 Runs two passes over the day:
@@ -114,7 +132,7 @@ fast book's order capacity (by default the number of adds and replaces in the fi
 ### itch_pipeline
 
 ```sh
-./build/itch_pipeline 08302019.NASDAQ_ITCH50 --feed-cpu 2 --strategy-cpu 4 --out ofi.csv
+./build/itch_pipeline 01302020.NASDAQ_ITCH50 --feed-cpu 2 --strategy-cpu 4 --out ofi.csv
 ```
 
 The feed thread applies messages to the fast book and pushes the top of book into a lock-free
@@ -227,9 +245,21 @@ perf report
 `--book decode` to isolate the book. On Windows, Intel VTune's Memory Access analysis reads the
 same counters.
 
+WSL2 has no perf package for its kernel. Install the generic tools and call the binary directly:
+
+```sh
+sudo apt install linux-tools-generic
+PERF=$(ls /usr/lib/linux-tools/*/perf | head -n 1)
+$PERF stat -e cycles,instructions,cache-misses true
+```
+
+The last command prints counts if the host passes the hardware counters through to the VM, and
+`<not supported>` if it does not. Thread pinning under WSL2 applies to virtual CPUs, so latency
+tails pick up some noise from the host.
+
 For stable numbers, set the CPU governor to performance (`sudo cpupower frequency-set -g
-performance`), pin to a core nothing else uses, keep the file in the page cache and repeat each
-measurement a few times.
+performance`; on Windows and WSL2, the Best performance power mode), pin to a core nothing else
+uses, keep the file in the page cache and repeat each measurement a few times.
 
 ## Next experiments
 
@@ -237,6 +267,6 @@ measurement a few times.
   references, so most lookups miss cache. References are assigned in sequence, so a hash that
   keeps neighbours in the same cache line, or prefetching the next message's slot, should cut the
   misses.
-- Newer data may carry half-cent prices for some stocks after the Rule 612 amendments. They are
-  handled through the far map today; if a file has many of them, a half-cent grid in `tick_of`
-  keeps them in the array.
+- Once the Rule 612 amendments take effect (currently set for November 2027), some stocks will
+  quote in half cents. Those prices go through the far map today; if a file has many of them, a
+  half-cent grid in `tick_of` keeps them in the array.

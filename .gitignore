@@ -11,4 +11,5 @@ CMakeUserPresets.json
 *.gz
 *.csv
 *NASDAQ_ITCH50*
+itch50_*
 perf.data*
