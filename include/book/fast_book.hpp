@@ -55,6 +55,8 @@ class FastBook {
   const Anomalies& anomalies() const noexcept { return anomalies_; }
   const FastBookStats& stats() const noexcept { return stats_; }
   std::size_t preallocated_bytes() const noexcept;
+  // Whether every large preallocated buffer is backed by large pages.
+  bool large_pages() const noexcept;
 
  private:
   static constexpr std::uint32_t kWords = kWindow / 64;

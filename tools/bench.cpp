@@ -133,8 +133,8 @@ void print_book(const Book& b) {
               tools::commas(b.peak_orders()).c_str(), tools::commas(b.live_orders()).c_str(),
               tools::commas(b.anomalies().total()).c_str());
   if constexpr (requires { b.stats(); }) {
-    std::printf("memory       %s preallocated\n",
-                tools::bytes_text(b.preallocated_bytes()).c_str());
+    std::printf("memory       %s preallocated, large pages: %s\n",
+                tools::bytes_text(b.preallocated_bytes()).c_str(), b.large_pages() ? "yes" : "no");
     std::printf("slow path    %s window recenters, %s far-level updates\n",
                 tools::commas(b.stats().recenters).c_str(),
                 tools::commas(b.stats().far_updates).c_str());

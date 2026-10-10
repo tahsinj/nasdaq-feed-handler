@@ -21,6 +21,10 @@ class OsBuffer {
   void* data() const noexcept { return data_; }
   std::size_t size() const noexcept { return size_; }
 
+  // Whether the buffer is backed by large pages: on Linux whether madvise(MADV_HUGEPAGE)
+  // was accepted, on Windows whether the MEM_LARGE_PAGES allocation succeeded.
+  bool large_pages() const noexcept { return large_pages_; }
+
  private:
   void release() noexcept;
 
@@ -28,6 +32,7 @@ class OsBuffer {
   std::size_t reserved_ = 0;
   void* data_ = nullptr;
   std::size_t size_ = 0;
+  bool large_pages_ = false;
 };
 
 template <class T>
@@ -41,6 +46,7 @@ class OsArray {
   T* data() const noexcept { return static_cast<T*>(buffer_.data()); }
   T& operator[](std::size_t i) const noexcept { return data()[i]; }
   std::size_t size() const noexcept { return size_; }
+  bool large_pages() const noexcept { return buffer_.large_pages(); }
 
  private:
   OsBuffer buffer_;

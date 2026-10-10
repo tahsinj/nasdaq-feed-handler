@@ -67,6 +67,7 @@ class OrderMap {
   std::size_t size() const noexcept { return size_; }
   std::size_t capacity() const noexcept { return slots_.size(); }
   std::size_t bytes() const noexcept { return slots_.size() * sizeof(Slot); }
+  bool large_pages() const noexcept { return slots_.large_pages(); }
 
  private:
   struct Slot {

@@ -25,6 +25,11 @@ std::size_t FastBook::preallocated_bytes() const noexcept {
          pool_.size() * sizeof(Order) + orders_.bytes() + far_arena_.size();
 }
 
+bool FastBook::large_pages() const noexcept {
+  return levels_.large_pages() && bits_.large_pages() && pool_.large_pages() &&
+         orders_.large_pages() && far_arena_.large_pages();
+}
+
 void FastBook::pool_exhausted() {
   throw std::length_error("order pool is full; rerun with a larger --max-orders");
 }

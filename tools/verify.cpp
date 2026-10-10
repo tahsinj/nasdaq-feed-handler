@@ -181,9 +181,11 @@ int run(int argc, char** argv) {
   std::printf(
       "crossed      %s order events left a trading symbol locked or crossed in market hours\n",
       tools::commas(checker.crossed()).c_str());
-  std::printf("allocations  %s heap allocations inside the fast book (%s preallocated)\n",
-              tools::commas(checker.fast_allocations()).c_str(),
-              tools::bytes_text(fast.preallocated_bytes()).c_str());
+  std::printf(
+      "allocations  %s heap allocations inside the fast book (%s preallocated, "
+      "large pages: %s)\n",
+      tools::commas(checker.fast_allocations()).c_str(),
+      tools::bytes_text(fast.preallocated_bytes()).c_str(), fast.large_pages() ? "yes" : "no");
   std::printf("slow path    %s window recenters, %s far-level updates\n",
               tools::commas(fast.stats().recenters).c_str(),
               tools::commas(fast.stats().far_updates).c_str());
