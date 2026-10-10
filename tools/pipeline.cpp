@@ -240,14 +240,16 @@ class OfiEngine {
   bool open_ = false;
 };
 
-void run_strategy(Ring& ring, OfiEngine& engine, util::Histogram& handoff) {
+void run_strategy(Ring& ring, OfiEngine& engine, util::Histogram& handoff, std::uint64_t& skewed) {
   Update u;
   for (;;) {
     if (!ring.try_pop(u)) {
       util::cpu_relax();
       continue;
     }
-    handoff.record(util::tsc_now() - u.sent);
+    const std::uint64_t now = util::tsc_now();
+    if (now < u.sent) ++skewed;
+    handoff.record(util::elapsed_ticks(u.sent, now));
     if (u.kind == Kind::End) break;
     engine.on(u);
   }
@@ -313,6 +315,7 @@ int run(int argc, char** argv) {
   Ring ring(std::size_t{1} << 16);
   OfiEngine engine(num_locates);
   util::Histogram handoff;
+  std::uint64_t skewed = 0;
   Publisher publisher(book, ring, num_locates);
   const double ticks_per_ns = util::tsc_ticks_per_ns();
 
@@ -320,7 +323,7 @@ int run(int argc, char** argv) {
   const auto t0 = std::chrono::steady_clock::now();
   std::thread strategy([&] {
     if (strategy_cpu >= 0) strategy_pinned = util::pin_thread(strategy_cpu);
-    run_strategy(ring, engine, handoff);
+    run_strategy(ring, engine, handoff, skewed);
   });
   if (feed_cpu >= 0 && !util::pin_thread(feed_cpu)) {
     std::printf("warning      could not pin the feed thread to cpu %d\n", feed_cpu);
@@ -343,6 +346,9 @@ int run(int argc, char** argv) {
               tools::commas(ring.capacity()).c_str(), tools::commas(publisher.waits()).c_str());
   std::printf("handoff      p50 %.0f ns, p99 %.0f ns, p99.9 %.0f ns, max %.0f ns\n", ns(0.5),
               ns(0.99), ns(0.999), static_cast<double>(handoff.max()) / ticks_per_ns);
+  std::printf(
+      "clock skew   %s handoff samples read the strategy core's counter behind the feed core's\n",
+      tools::commas(skewed).c_str());
   std::printf("ofi          %s symbol-minutes in regular hours\n",
               tools::commas(engine.rows().size()).c_str());
   if (!out.empty()) {

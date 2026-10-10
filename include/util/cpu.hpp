@@ -49,6 +49,12 @@ inline void cpu_relax() noexcept {}
 
 #endif
 
+// Ticks from `start` to `end`, read on possibly different cores. Returns 0 when `end`
+// reads behind `start`, which happens when the cores' counters are slightly out of sync.
+inline std::uint64_t elapsed_ticks(std::uint64_t start, std::uint64_t end) noexcept {
+  return end > start ? end - start : 0;
+}
+
 // Counter ticks per nanosecond, calibrated once against steady_clock.
 double tsc_ticks_per_ns();
 

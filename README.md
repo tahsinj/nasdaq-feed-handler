@@ -56,6 +56,13 @@ machine it runs on (`-march=native`, or `/arch:AVX2` on MSVC); `-DFH_NATIVE=OFF`
 binaries. `-DFH_SANITIZE=address,undefined` or `-DFH_SANITIZE=thread` enables sanitizers on GCC
 and Clang.
 
+The book preallocates its buffers on large pages when it can, to cut TLB misses on the roughly
+2 GB of tables. Linux uses transparent huge pages with no setup. A native Windows build needs the
+"Lock pages in memory" user right: open `secpol.msc`, go to Local Policies, User Rights
+Assignment, add your account to "Lock pages in memory", then sign out and back in. Without it the
+tools fall back to normal pages and the `memory` line reports `large pages: no`. WSL2 runs the
+Linux build, so it needs none of this.
+
 The fast book preallocates about 2 GB for a full day, and `itch_verify` also builds the reference
 book. The Data section covers how much memory the file itself needs.
 
@@ -227,6 +234,10 @@ order reference to order. Simple enough to trust, and it allocates on almost eve
   It is summed per symbol per minute between the market open and close system events, skipping
   halted symbols. The CSV includes the mid at the start and end of each minute, so price changes
   can be regressed on OFI directly.
+- Handoff latency subtracts a counter stamped on the feed core from one read on the strategy
+  core. Invariant timestamp counters are usually synchronized across cores, but not guaranteed to
+  be, so a sample where the strategy core reads behind is recorded as 0 rather than wrapping, and
+  the tool reports how many samples that happened to.
 
 ## Profiling
 

@@ -15,6 +15,7 @@
 #include "itch/summary.hpp"
 #include "itch/writer.hpp"
 #include "util/alloc_counter.hpp"
+#include "util/cpu.hpp"
 #include "util/histogram.hpp"
 #include "util/spsc_ring.hpp"
 
@@ -667,6 +668,13 @@ TEST(spsc_ring_delivers_every_item_in_order) {
   std::uint64_t extra = 0;
   CHECK(in_order);
   CHECK(!ring.try_pop(extra));
+}
+
+TEST(elapsed_ticks_clamps_counters_that_go_backwards) {
+  CHECK(util::elapsed_ticks(100, 250) == 150);
+  CHECK(util::elapsed_ticks(250, 250) == 0);
+  CHECK(util::elapsed_ticks(250, 100) == 0);
+  CHECK(util::elapsed_ticks(0, UINT64_MAX) == UINT64_MAX);
 }
 
 TEST(histogram_quantiles) {
