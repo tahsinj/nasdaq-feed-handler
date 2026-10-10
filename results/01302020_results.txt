@@ -1,0 +1,144 @@
+nasdaq-feed-handler — real NASDAQ trading day results
+=====================================================
+
+Data:    NASDAQ TotalView-ITCH 5.0 sample day 01302020 (emi.nasdaq.com)
+Machine: WSL2, Ubuntu 24.04, GCC 13.3.0, Release build (CPU: 12th Gen Intel Core i5-12400)
+Memory:  .wslconfig memory=24GB; transparent_hugepage = always [madvise] never
+Date:    2026-10-10
+
+Note: the fast-book latency table comes from an unpinned run; all throughput
+comparisons (reference / fast / decode) are pinned with --cpu 2.
+
+
+$ ./build/fh_tests
+pass big_endian_loads
+pass add_order_fields_sit_at_spec_offsets
+pass message_sizes_match_spec
+pass every_message_type_round_trips
+pass framing_stops_before_a_truncated_message
+pass short_messages_are_reported_not_decoded
+pass orders_at_one_price_aggregate
+pass executions_cancels_and_deletes_reduce_the_book
+pass replace_keeps_side_and_symbol
+pass bad_feed_events_are_counted_and_ignored
+pass sub_dollar_ticks_and_the_dollar_boundary
+pass far_levels_and_window_moves
+pass prices_off_the_cent_grid
+pass trades_crosses_and_broken_trades_leave_the_book_alone
+pass fast_book_matches_reference_on_random_flow
+pass fast_book_does_not_allocate_after_construction
+pass order_map_matches_unordered_map
+pass spsc_ring_delivers_every_item_in_order
+pass elapsed_ticks_clamps_counters_that_go_backwards
+pass histogram_quantiles
+0 failed checks
+
+
+$ ./build/itch_verify ~/01302020.NASDAQ_ITCH50
+file         /home/tahsin/01302020.NASDAQ_ITCH50
+size         12.95 GB, 423,285,709 messages, 8,915 symbols
+   10%
+crossed at message 49,594,116 (C executed price) DTSS 09:52:29.890457838
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,117 (C executed price) DTSS 09:52:29.890458065
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,118 (C executed price) DTSS 09:52:29.890458335
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,119 (C executed price) DTSS 09:52:29.890458590
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,120 (C executed price) DTSS 09:52:29.890458809
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,121 (C executed price) DTSS 09:52:29.890459143
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,122 (C executed price) DTSS 09:52:29.890459311
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,123 (C executed price) DTSS 09:52:29.890460564
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,124 (C executed price) DTSS 09:52:29.890460825
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+crossed at message 49,594,125 (C executed price) DTSS 09:52:29.890461070
+  bid 861 @ 4.8200 (9 orders), ask 300 @ 3.2500 (1 orders)
+   20%
+   30%
+   40%
+   50%
+   60%
+   70%
+   80%
+   90%
+  100%
+replay       423,285,709 messages in 212.42 s
+compared     top of book after 417,219,234 order events: 0 mismatches
+anomalies    fast 0 (unknown 0, duplicate 0, zero shares 0, overfill 0, bad locate 0)
+             reference 0 (unknown 0, duplicate 0, zero shares 0, overfill 0, bad locate 0)
+live orders  fast 0, reference 0 at end of feed (peak 1,925,638)
+crossed      458 order events left a trading symbol locked or crossed in market hours
+allocations  0 heap allocations inside the fast book (1.82 GB preallocated, large pages: yes)
+slow path    31,757 window recenters, 3,943,570 far-level updates
+result       PASS
+
+
+$ ./build/itch_bench ~/01302020.NASDAQ_ITCH50
+file         /home/tahsin/01302020.NASDAQ_ITCH50
+size         12.95 GB, 423,285,709 messages, 8,915 symbols
+clock        2.497 GHz timestamp counter, timer overhead 15.6 ns
+book         fast
+throughput   13.85 M msg/s, 72.2 ns/msg, 30.56 s, 0 heap allocations
+orders       peak 1,925,638 live, 0 at end, 0 feed anomalies
+memory       1.82 GB preallocated, large pages: yes
+slow path    31,757 window recenters, 3,943,570 far-level updates
+
+latency per message in ns (decode and apply, timer overhead included)
+type                         count     p50     p90     p99   p99.9   p99.99        max
+all                    423,285,709     124     303     596     948     9330    3190557
+A add                  184,735,355     117     192     461     660     8304     947411
+D delete               180,285,101     163     352     653     961     9740    2644136
+U replace               36,777,372     193     403     769    1384    10252    3190557
+E executed               8,415,610     185     370     653     935     9740    2101726
+X cancel                 4,990,972      89     245     519     781     8304     134094
+I noii                   4,025,192      18      24      25      32       72      92589
+F add mpid               1,875,350     124     264     512     801     8920      76895
+P trade                  1,779,727      24      26      28      39      110      71087
+L mp position              216,802      18      19      20      20       28      24887
+C executed price           139,474      72     281     583     897     7177      45849
+Q cross trade               17,835      24      27      30      40      102        131
+Y reg sho                    9,068      16      17      22      24       26         26
+H trading action             8,921      18      19      20      24     7108       7108
+R stock directory            8,916      18      19      20      22    10596      10596
+S system event                   6      26     299     299     299      299        299
+J luld collar                    5      24      25      25      25       25         25
+K ipo quoting                    2      24      24      24      24       24         24
+V mwcb level                     1      24      24      24      24       24         24
+
+(during this run, in a second shell)
+$ grep AnonHugePages /proc/$(pgrep itch_bench)/smaps_rollup
+AnonHugePages:   1775616 kB
+
+
+$ ./build/itch_bench ~/01302020.NASDAQ_ITCH50 --book reference --cpu 2 --no-latency
+file         /home/tahsin/01302020.NASDAQ_ITCH50
+size         12.95 GB, 423,285,709 messages, 8,915 symbols
+clock        2.505 GHz timestamp counter, timer overhead 16.0 ns
+book         reference
+throughput   3.55 M msg/s, 281.7 ns/msg, 119.24 s, 295,669,870 heap allocations
+orders       peak 1,925,638 live, 0 at end, 0 feed anomalies
+
+
+$ ./build/itch_bench ~/01302020.NASDAQ_ITCH50 --book fast --cpu 2 --no-latency
+file         /home/tahsin/01302020.NASDAQ_ITCH50
+size         12.95 GB, 423,285,709 messages, 8,915 symbols
+clock        2.497 GHz timestamp counter, timer overhead 15.6 ns
+book         fast
+throughput   14.51 M msg/s, 68.9 ns/msg, 29.18 s, 0 heap allocations
+orders       peak 1,925,638 live, 0 at end, 0 feed anomalies
+memory       1.82 GB preallocated, large pages: yes
+slow path    31,757 window recenters, 3,943,570 far-level updates
+
+
+$ ./build/itch_bench ~/01302020.NASDAQ_ITCH50 --book decode --cpu 2 --no-latency
+file         /home/tahsin/01302020.NASDAQ_ITCH50
+size         12.95 GB, 423,285,709 messages, 8,915 symbols
+clock        2.460 GHz timestamp counter, timer overhead 16.3 ns
+book         none (decode only)
+throughput   129.24 M msg/s, 7.7 ns/msg, 3.28 s, 0 heap allocations
+checksum     99812739813919147
