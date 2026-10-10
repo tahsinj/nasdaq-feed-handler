@@ -6,8 +6,10 @@ Machine: WSL2, Ubuntu 24.04, GCC 13.3.0, Release build (CPU: 12th Gen Intel Core
 Memory:  .wslconfig memory=24GB; transparent_hugepage = always [madvise] never
 Date:    2026-10-10
 
-Note: the fast-book latency table comes from an unpinned run; all throughput
-comparisons (reference / fast / decode) are pinned with --cpu 2.
+Note: the first itch_bench run below is unpinned; the final run (fast book with
+latency, --cpu 2) is the pinned latency table to quote. Throughput comparisons
+(reference / fast / decode) are pinned with --cpu 2. Fast-book throughput varied
+13.90-14.51 M msg/s across pinned runs (~4% run-to-run noise).
 
 
 $ ./build/fh_tests
@@ -142,3 +144,36 @@ clock        2.460 GHz timestamp counter, timer overhead 16.3 ns
 book         none (decode only)
 throughput   129.24 M msg/s, 7.7 ns/msg, 3.28 s, 0 heap allocations
 checksum     99812739813919147
+
+
+$ ./build/itch_bench ~/01302020.NASDAQ_ITCH50 --book fast --cpu 2
+file         /home/tahsin/01302020.NASDAQ_ITCH50
+size         12.95 GB, 423,285,709 messages, 8,915 symbols
+clock        2.489 GHz timestamp counter, timer overhead 16.1 ns
+book         fast
+throughput   13.90 M msg/s, 72.0 ns/msg, 30.46 s, 0 heap allocations
+orders       peak 1,925,638 live, 0 at end, 0 feed anomalies
+memory       1.82 GB preallocated, large pages: yes
+slow path    31,757 window recenters, 3,943,570 far-level updates
+
+latency per message in ns (decode and apply, timer overhead included)
+type                         count     p50     p90     p99   p99.9   p99.99        max
+all                    423,285,709     121     282     552     874     8432     676612
+A add                  184,735,355     116     169     449     610     7198     146177
+D delete               180,285,101     155     317     597     887     8946     166694
+U replace               36,777,372     183     377     713    1195     9563     676612
+E executed               8,415,610     176     339     610     874     8843      92146
+X cancel                 4,990,972      86     228     482     719     6787      85017
+I noii                   4,025,192      18      25      25      27       57      13292
+F add mpid               1,875,350     123     254     494     745     8329      98125
+P trade                  1,779,727      25      26      28      37       73      23049
+L mp position              216,802      18      19      20      20       25      18434
+C executed price           139,474      71     256     514     777     8843      23671
+Q cross trade               17,835      25      27      28      37       85        170
+Y reg sho                    9,068      16      17      22      23       25         25
+H trading action             8,921      18      19      19      25      225        225
+R stock directory            8,916      18      19      19      20       25         25
+S system event                   6      25     158     158     158      158        158
+J luld collar                    5      25      25      25      25       25         25
+K ipo quoting                    2      24      24      24      24       24         24
+V mwcb level                     1      25      25      25      25       25         25
