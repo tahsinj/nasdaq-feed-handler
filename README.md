@@ -272,6 +272,31 @@ For stable numbers, set the CPU governor to performance (`sudo cpupower frequenc
 performance`; on Windows and WSL2, the Best performance power mode), pin to a core nothing else
 uses, keep the file in the page cache and repeat each measurement a few times.
 
+## Results
+
+NASDAQ TotalView-ITCH 5.0 sample day `01302020` (423,285,709 messages, 8,915 symbols, 12.95 GB),
+on an Intel Core i5-12400 under WSL2 (Ubuntu 24.04, GCC 13.3, Release). `itch_verify` replays the
+whole day with 0 top-of-book mismatches against the reference book, 0 feed anomalies and 0 heap
+allocations in the fast book. Full logs are in [`results/01302020_results.txt`](results/01302020_results.txt).
+
+Throughput, pinned with `--cpu 2`:
+
+| Path | Throughput | Per message |
+|---|---|---|
+| decode only | ~129 M msg/s | 7.7 ns |
+| fast book | ~14 M msg/s | 68.9 ns |
+| reference book | ~3.6 M msg/s | 281.7 ns |
+
+The fast book runs at about 4x the reference and allocates nothing on the hot path, where the
+reference book made 296 million allocations over the day.
+
+Per-message latency to decode and apply one message (pinned, timer overhead included), across all
+423 million messages:
+
+| p50 | p90 | p99 | p99.9 |
+|---|---|---|---|
+| 121 ns | 282 ns | 552 ns | 874 ns |
+
 ## Next experiments
 
 - The order map is the likely hotspot on a full day. Fibonacci hashing scatters consecutive order
