@@ -1,0 +1,15 @@
+build/
+build-*/
+out/
+.cache/
+.vs/
+.vscode/
+.idea/
+CMakeUserPresets.json
+
+*.itch
+*.gz
+*.csv
+*NASDAQ_ITCH50*
+itch50_*
+perf.data*
